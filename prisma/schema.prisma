@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum BudgetType {
+  INCOME
+  EXPENSE
+  SAVINGS
+  INVESTMENT
+  LOAN
+  LEND
+  EXTRA
+}
+
+enum BudgetFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONE_TIME
+}
+
+enum ReminderStatus {
+  ACTIVE
+  SNOOZED
+  COMPLETED
+  CANCELLED
+}
+
+enum AuthProviderType {
+  GOOGLE
+  GITHUB
+  EMAIL
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  username         String            @unique
+  passwordHash     String?           @map("password_hash")
+  isActive         Boolean           @default(true) @map("is_active")
+  accountLocked    Boolean           @default(false) @map("account_locked")
+  roles            String[]
+  providerId       String?           @map("provider_id")
+  authProviderType AuthProviderType? @map("provider_type")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  createdBy        String?           @map("created_by")
+  lastModifiedBy   String?           @map("last_modified_by")
+
+  budgetCategories BudgetCategory[]
+  budgets          Budget[]
+  recurringBudgets RecurringBudget[]
+  paymentReminders PaymentReminder[]
+
+  @@index([providerId, authProviderType], name: "idx_provider_id_provider_type")
+  @@map("users")
+}
+
+model BudgetCategory {
+  id             String     @id @default(uuid())
+  userId         String     @map("user_id")
+  name           String     @db.VarChar(30)
+  notes          String?    @db.VarChar(100)
+  budgetType     BudgetType @map("budget_type")
+  isActive       Boolean    @default(true) @map("is_active")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  createdBy      String?    @map("created_by")
+  lastModifiedBy String?    @map("last_modified_by")
+
+  user             User              @relation(fields: [userId], references: [id])
+  budgets          Budget[]
+  recurringBudgets RecurringBudget[]
+  paymentReminders PaymentReminder[]
+
+  @@unique([userId, name])
+  @@map("budget_categories")
+}
+
+model Budget {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  budgetCategoryId  String   @map("budget_category_id")
+  recurringBudgetId String?  @map("recurring_budget_id")
+  name              String   @db.VarChar(50)
+  amount            BigInt
+  currency          String   @default("NPR")
+  budgetDate        DateTime @map("budget_date")
+  receiptUrl        String?  @map("receipt_url")
+  tags              String[]
+  isRecurring       Boolean  @default(false) @map("is_recurring")
+  version           Int      @default(0)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  createdBy         String?  @map("created_by")
+  lastModifiedBy    String?  @map("last_modified_by")
+
+  user            User             @relation(fields: [userId], references: [id])
+  budgetCategory  BudgetCategory   @relation(fields: [budgetCategoryId], references: [id])
+  recurringBudget RecurringBudget? @relation(fields: [recurringBudgetId], references: [id])
+
+  @@unique([recurringBudgetId, budgetDate])
+  @@index([userId, budgetDate], name: "idx_user_budget_date")
+  @@index([recurringBudgetId], name: "idx_recurring_budget_id")
+  @@map("budgets")
+}
+
+model RecurringBudget {
+  id                String          @id @default(uuid())
+  userId            String          @map("user_id")
+  budgetCategoryId  String          @map("budget_category_id")
+  name              String?
+  description       String?
+  amount            BigInt
+  currency          String          @default("NPR")
+  frequency         BudgetFrequency
+  frequencyInterval Int             @default(1) @map("frequency_interval")
+  startDate         DateTime        @map("start_date") @db.Date
+  endDate           DateTime?       @map("end_date") @db.Date
+  nextOccurrence    DateTime?       @map("next_occurrence") @db.Date
+  isActive          Boolean         @default(true) @map("is_active")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  createdBy         String?         @map("created_by")
+  lastModifiedBy    String?         @map("last_modified_by")
+
+  user           User           @relation(fields: [userId], references: [id])
+  budgetCategory BudgetCategory @relation(fields: [budgetCategoryId], references: [id])
+  budgets        Budget[]
+
+  @@map("recurring_budgets")
+}
+
+model PaymentReminder {
+  id             String          @id @default(uuid())
+  userId         String          @map("user_id")
+  categoryId     String          @map("category_id")
+  reminderName   String          @map("reminder_name")
+  frequency      BudgetFrequency
+  nextDueDate    DateTime        @map("next_due_date") @db.Date
+  status         ReminderStatus  @default(ACTIVE)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  createdBy      String?         @map("created_by")
+  lastModifiedBy String?         @map("last_modified_by")
+
+  user           User           @relation(fields: [userId], references: [id])
+  budgetCategory BudgetCategory @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, reminderName])
+  @@index([userId, nextDueDate], name: "idx_user_next_due_date")
+  @@map("payment_reminders")
+}
