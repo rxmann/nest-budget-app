@@ -9,8 +9,8 @@ import { NotFoundException } from '../common/exceptions/not-found.exception';
 import { AppException } from '../common/exceptions/app.exception';
 import { HttpStatus } from '@nestjs/common';
 import { PaginatedResult } from './types/budget.types';
-import { CurrentUserType } from '../common/decorators/user.decorator';
 import { toStorageAmount } from './utils/budget.util';
+import { CurrentUserType } from 'src/auth/decorators/current-user.decorator';
 
 @Injectable()
 export class BudgetService {
@@ -155,3 +155,4 @@ export class BudgetService {
     this.logger.log(`Budget deleted: ${budgetId} for user: ${user.id}`);
   }
 }
+

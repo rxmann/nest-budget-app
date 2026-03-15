@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { BudgetService } from './budget.service';
 import { CreateBudgetDto } from './dto/create-budget.dto';
@@ -17,9 +18,11 @@ import { BudgetQueryDto } from './dto/budget-query.dto';
 import {
   CurrentUser,
   CurrentUserType,
-} from '../common/decorators/user.decorator';
+} from 'src/auth/decorators/current-user.decorator';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 
 @Controller('budgets')
+@UseGuards(JwtGuard)
 export class BudgetController {
   constructor(private readonly budgetService: BudgetService) {}
 
