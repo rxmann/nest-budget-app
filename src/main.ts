@@ -7,6 +7,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { AppValidationPipe } from './common/pipes/validation.pipe';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -38,8 +39,17 @@ async function bootstrap() {
   app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
 
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Budgets API')
+    .setDescription('Budgets API Documentation')
+    .setVersion('1.0')
+    .addCookieAuth('access_token')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, document);
+
   await app.listen(port);
 }
 
 void bootstrap();
-
