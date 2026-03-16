@@ -143,6 +143,7 @@ export class BudgetCategoryService {
   async deleteCategory(
     user: CurrentUserType,
     categoryId: string,
+    newCategoryId?: string,
   ): Promise<void> {
     const existing = await this.prisma.budgetCategory.findFirst({
       where: { id: categoryId, userId: user.id, isActive: true },
@@ -150,13 +151,63 @@ export class BudgetCategoryService {
 
     if (!existing) throw new NotFoundException('Category');
 
-    await this.prisma.budgetCategory.update({
-      where: { id: categoryId },
-      data: { isActive: false, lastModifiedBy: user.id },
+    // count references in parallel
+    const [budgetCount, recurringCount, reminderCount] = await Promise.all([
+      this.prisma.budget.count({ where: { budgetCategoryId: categoryId } }),
+      this.prisma.recurringBudget.count({
+        where: { budgetCategoryId: categoryId },
+      }),
+      this.prisma.paymentReminder.count({ where: { categoryId } }),
+    ]);
+
+    const hasReferences = budgetCount + recurringCount + reminderCount > 0;
+
+    // references exist but no replacement provided — return counts to client
+    if (hasReferences && !newCategoryId) {
+      throw new ConflictException({
+        message: 'Category has existing references',
+        budgetCount,
+        recurringCount,
+        reminderCount,
+      });
+    }
+
+    // validate replacement category belongs to same user
+    if (newCategoryId) {
+      const replacement = await this.prisma.budgetCategory.findFirst({
+        where: { id: newCategoryId, userId: user.id, isActive: true },
+        select: { id: true },
+      });
+      if (!replacement) throw new NotFoundException('Replacement category');
+    }
+
+    // bulk reassign + soft delete in single transaction
+    await this.prisma.$transaction(async (tx) => {
+      if (hasReferences && newCategoryId) {
+        await Promise.all([
+          tx.budget.updateMany({
+            where: { budgetCategoryId: categoryId },
+            data: { budgetCategoryId: newCategoryId },
+          }),
+          tx.recurringBudget.updateMany({
+            where: { budgetCategoryId: categoryId },
+            data: { budgetCategoryId: newCategoryId },
+          }),
+          tx.paymentReminder.updateMany({
+            where: { categoryId },
+            data: { categoryId: newCategoryId },
+          }),
+        ]);
+      }
+
+      await tx.budgetCategory.update({
+        where: { id: categoryId },
+        data: { isActive: false, lastModifiedBy: user.id },
+      });
     });
 
     this.logger.log(
-      `Category soft-deleted: ${categoryId} for user: ${user.id}`,
+      `Category soft-deleted: ${categoryId} — reassigned ${budgetCount + recurringCount + reminderCount} references to ${newCategoryId ?? 'none'}`,
     );
   }
 }

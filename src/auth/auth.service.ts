@@ -15,6 +15,7 @@ import { setAuthCookie, clearAuthCookie } from './utils/cookie.util';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { GoogleProfile } from './strategies/google.strategy';
 import { AuthProviderType } from '../../generated/prisma/client';
+import { CurrentUserType } from './decorators/current-user.decorator';
 
 @Injectable()
 export class AuthService {
@@ -159,6 +160,21 @@ export class AuthService {
       username: user.username,
       roles: user.roles,
     };
+  }
+
+  async getProfile(user: CurrentUserType) {
+    return this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isActive: true,
+        roles: true,
+        authProviderType: true,
+        createdAt: true,
+      },
+    });
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

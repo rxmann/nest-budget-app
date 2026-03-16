@@ -18,6 +18,7 @@ import {
   CurrentUser,
   CurrentUserType,
 } from 'src/auth/decorators/current-user.decorator';
+import { DeleteBudgetCategoryDto } from './dto/delete-budget-category.dto';
 
 @Controller('budget-categories')
 export class BudgetCategoryController {
@@ -56,7 +57,15 @@ export class BudgetCategoryController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentUser() user: CurrentUserType, @Param('id') id: string) {
-    return this.budgetCategoryService.deleteCategory(user, id);
+  remove(
+    @CurrentUser() user: CurrentUserType,
+    @Param('id') id: string,
+    @Body() dto: DeleteBudgetCategoryDto,
+  ) {
+    return this.budgetCategoryService.deleteCategory(
+      user,
+      id,
+      dto.newCategoryId,
+    );
   }
 }

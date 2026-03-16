@@ -13,11 +13,15 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { CurrentUser } from './decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleProfile } from './strategies/google.strategy';
 import { JwtPayload } from './strategies/jwt.strategy';
+import { JwtGuard } from './guards/jwt.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -73,8 +77,8 @@ export class AuthController {
 
   // ─── Me ────────────────────────────────────────────────────────────────────
 
-  @Get('me')
-  me(@CurrentUser() user: JwtPayload) {
-    return user;
+  @Get('profile')
+  profile(@CurrentUser() user: CurrentUserType) {
+    return this.authService.getProfile(user);
   }
 }
